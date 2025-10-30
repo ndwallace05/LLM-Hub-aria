@@ -11,6 +11,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.llmhub.llmhub.data.*
 import com.llmhub.llmhub.inference.InferenceService
 import com.llmhub.llmhub.repository.ChatRepository
+import com.llmhub.llmhub.repository.PersonaRepository
 import com.llmhub.llmhub.utils.FileUtils
 import com.llmhub.llmhub.R
 import kotlinx.coroutines.flow.*
@@ -44,6 +45,10 @@ class ChatViewModel(
 
     private val themePreferences = ThemePreferences(context)
     private val ragServiceManager = com.llmhub.llmhub.embedding.RagServiceManager.getInstance(context)
+    private val personaRepository: PersonaRepository by lazy {
+        val app = context.applicationContext as com.llmhub.llmhub.llmhub.LlmHubApplication
+        app.personaRepository
+    }
     // Expose TTS service so ChatScreen can observe its isSpeaking state
     val ttsService = TtsService(context)
 
@@ -615,7 +620,7 @@ class ChatViewModel(
         }
     }
 
-    fun sendMessage(context: Context, text: String, attachmentUri: Uri?, audioData: ByteArray? = null) {
+    fun sendMessage(context: Context, text: String, attachmentUri: Uri?, audioData: ByteArray? = null, personaId: Int? = null) {
         val chatId = currentChatId
         if (chatId == null) {
             Log.e("ChatViewModel", "No current chat ID available, creating new chat")
@@ -919,6 +924,9 @@ class ChatViewModel(
                     else -> context.getString(R.string.drawer_new_chat)
                 }
                 repository.updateChatTitle(chatId, chatTitle)
+                if (personaId != null) {
+                    repository.updateChatPersona(chatId, personaId)
+                }
                 _currentChat.value = repository.getChatById(chatId)
             }
 
@@ -2359,10 +2367,23 @@ class ChatViewModel(
      * Build context-aware history that respects the model's context window limits.
      * This implements conversation-pair-aware truncation to maintain context flow.
      */
-    private fun buildContextAwareHistory(messages: List<MessageEntity>): String {
+    private suspend fun buildContextAwareHistory(messages: List<MessageEntity>): String {
         val model = currentModel ?: return ""
         val currentChatId = currentChatId ?: return ""
         
+        val MAX_PERSONA_PROMPT_LENGTH = 1024
+        val personaPromptRaw = _currentChat.value?.personaId?.let { personaId ->
+            personaRepository.getPersonaById(personaId)?.prompt
+        } ?: ""
+        val personaPrompt = if (personaPromptRaw.length > MAX_PERSONA_PROMPT_LENGTH) {
+            // Optionally, trigger a warning to the UI layer here (e.g., via LiveData or logging)
+            // For now, we log a warning
+            Log.w("ChatViewModel", "Persona prompt exceeds $MAX_PERSONA_PROMPT_LENGTH characters and will be truncated.")
+            personaPromptRaw.take(MAX_PERSONA_PROMPT_LENGTH)
+        } else {
+            personaPromptRaw
+        }
+
         // One-time priming: when returning to a chat from history, include ONLY
         // the last user/assistant pair to quickly re-establish immediate context.
         if (primeWithLastPairOnce) {
@@ -2429,7 +2450,7 @@ class ChatViewModel(
     // If we just reset, be stricter to guarantee fast recovery.
     val historyFraction = if (recentlyReset) 0.30 else 0.66
     val maxContextTokens = (model.contextWindowSize * historyFraction).toInt().coerceAtLeast(256)
-        val maxContextChars = maxContextTokens * 4 // Rough character limit (1 token ≈ 4 characters)
+    val maxContextChars = (maxContextTokens * 4) - personaPrompt.length // Rough character limit (1 token ≈ 4 characters)
         
         Log.d("ChatViewModel", "Context window: Model ${model.name} has ${model.contextWindowSize} tokens, using ${maxContextTokens} tokens (${maxContextChars} chars) for chat $currentChatId with ${chatMessages.size} messages")
         
@@ -2478,6 +2499,21 @@ class ChatViewModel(
         // Calculate total length
         val fullHistory = pairStrings.joinToString(separator = "\n\n")
         
+        // Ensure persona prompt is always included, and truncate history as needed
+        val contextWindow = model.contextWindowSize ?: 4096 // fallback if not set
+        val personaLength = personaPrompt.length
+        val availableLengthForHistory = contextWindow - personaLength - 2 // for "\n\n"
+        val truncatedHistory = if (fullHistory.length > availableLengthForHistory && availableLengthForHistory > 0) {
+            fullHistory.takeLast(availableLengthForHistory)
+        } else {
+            fullHistory
+        }
+        val historyWithPersona = if (personaPrompt.isNotBlank()) {
+            "$personaPrompt\n\n$truncatedHistory"
+        } else {
+            truncatedHistory
+        }
+
         // QUICK EXIT: If recent reset, drop all prior history. Start truly fresh.
         if (recentlyReset) {
             Log.d("ChatViewModel", "Recent reset detected; returning empty history (fully fresh context)")
@@ -2485,9 +2521,9 @@ class ChatViewModel(
         }
         
         // If full history fits under relaxed (non-reset) fraction, return it.
-        if (fullHistory.length <= maxContextChars) {
-            Log.d("ChatViewModel", "Full conversation history fits in allotted history window (${fullHistory.length} chars)")
-            return fullHistory
+        if (historyWithPersona.length <= maxContextChars) {
+            Log.d("ChatViewModel", "Full conversation history fits in allotted history window (${historyWithPersona.length} chars)")
+            return historyWithPersona
         }
         
         // Otherwise, implement smart truncation
@@ -2534,7 +2570,11 @@ class ChatViewModel(
         val preview = result.take(200) + if (result.length > 200) "..." else ""
         Log.d("ChatViewModel", "Context preview for chat $currentChatId: $preview")
         
-        return result
+        return if (personaPrompt.isNotBlank()) {
+            "$personaPrompt\n\n$result"
+        } else {
+            result
+        }
     }
 
     /**

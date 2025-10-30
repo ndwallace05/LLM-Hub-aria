@@ -53,6 +53,7 @@ fun SettingsScreen(
     onNavigateToModels: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToTerms: () -> Unit,
+    onNavigateToPersonas: () -> Unit,
     themeViewModel: ThemeViewModel = viewModel()
 ) {
     val uriHandler = LocalUriHandler.current
@@ -726,6 +727,13 @@ fun SettingsScreen(
                             // (replace-confirmation removed to allow multiple memory entries)
                         }
                     }
+
+                    SettingsItem(
+                        icon = Icons.Default.Face,
+                        title = stringResource(R.string.personas),
+                        subtitle = stringResource(R.string.personas_subtitle),
+                        onClick = onNavigateToPersonas
+                    )
                 }
             }
             

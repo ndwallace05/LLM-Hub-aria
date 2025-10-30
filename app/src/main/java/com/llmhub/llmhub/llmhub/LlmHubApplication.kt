@@ -9,6 +9,7 @@ import com.llmhub.llmhub.data.ThemePreferences
 import com.llmhub.llmhub.inference.InferenceService
 import com.llmhub.llmhub.inference.MediaPipeInferenceService
 import com.llmhub.llmhub.repository.ChatRepository
+import com.llmhub.llmhub.repository.PersonaRepository
 import com.llmhub.llmhub.utils.LocaleHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,7 @@ class LlmHubApplication : Application() {
     
     val database by lazy { LlmHubDatabase.getDatabase(this) }
     val chatRepository by lazy { ChatRepository(database.chatDao(), database.messageDao()) }
+    val personaRepository by lazy { PersonaRepository(database.personaDao()) }
     
     override fun onCreate() {
         super.onCreate()

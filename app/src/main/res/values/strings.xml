@@ -650,5 +650,25 @@
     <string name="model_not_loaded">Model not properly loaded. Please try switching to a different model or restart the app.</string>
     <string name="no_response_produced">No response produced. (Possible: token limit or session reset). Tap Regenerate.</string>
     <string name="prompt_too_long">Prompt is too long. Please shorten your message and try again.</string>
+
+    <!-- Personas -->
+    <string name="personas">Personas</string>
+    <string name="personas_subtitle">Manage custom AI personas</string>
+    <string name="no_persona">No Persona</string>
+    <string name="manage_personas">Manage Personas</string>
+    <string name="add_persona">Add Persona</string>
+    <string name="edit_persona">Edit Persona</string>
+    <string name="persona_name">Persona Name</string>
+    <string name="persona_prompt">Persona Prompt</string>
+    <string name="persona_name_hint">Enter a name for your persona</string>
+    <string name="persona_prompt_hint">Describe the persona\'s personality and instructions...</string>
+    <string name="delete_persona_title">Delete Persona?</string>
+    <string name="delete_persona_message">Are you sure you want to delete this persona?</string>
+    <string name="persona_empty_list">No personas created yet. Tap '+' to add one.</string>
+    <string name="edit">Edit</string>
+    <string name="back_description">Back</string>
+    <string name="add_persona_description">Add Persona</string>
+    <string name="edit_persona_description">Edit Persona</string>
+    <string name="delete_persona_description">Delete Persona</string>
 </resources>
 

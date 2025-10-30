@@ -8,8 +8,13 @@ import kotlinx.coroutines.launch
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.lifecycle.ViewModelProvider
+import androidx.compose.ui.platform.LocalContext
+import com.llmhub.llmhub.llmhub.LlmHubApplication
 import com.llmhub.llmhub.screens.*
 import com.llmhub.llmhub.viewmodels.ChatViewModelFactory
+import com.llmhub.llmhub.viewmodels.PersonaViewModel
+import com.llmhub.llmhub.viewmodels.PersonaViewModelFactory
 import com.llmhub.llmhub.viewmodels.ThemeViewModel
 
 sealed class Screen(val route: String) {
@@ -26,6 +31,7 @@ sealed class Screen(val route: String) {
     object Models : Screen("models")
     object About : Screen("about")
     object Terms : Screen("terms")
+    object Personas : Screen("personas")
 }
 
 @Composable
@@ -36,6 +42,12 @@ fun LlmHubNavigation(
     startDestination: String = Screen.Home.route
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val context = LocalContext.current
+    val application = context.applicationContext as LlmHubApplication
+    val personaRepository = application.personaRepository
+    val personaViewModel: PersonaViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = PersonaViewModelFactory(personaRepository)
+    )
 
     NavHost(
         navController = navController,
@@ -89,6 +101,7 @@ fun LlmHubNavigation(
             ChatScreen(
                 chatId = chatId,
                 viewModelFactory = chatViewModelFactory,
+                personaViewModel = personaViewModel,
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
@@ -150,6 +163,9 @@ fun LlmHubNavigation(
                 onNavigateToTerms = {
                     navController.navigate(Screen.Terms.route)
                 },
+                onNavigateToPersonas = {
+                    navController.navigate(Screen.Personas.route)
+                },
                 themeViewModel = themeViewModel
             )
         }
@@ -175,6 +191,13 @@ fun LlmHubNavigation(
                 onNavigateBack = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(Screen.Personas.route) {
+            PersonaManagementScreen(
+                navController = navController,
+                personaViewModel = personaViewModel
             )
         }
     }

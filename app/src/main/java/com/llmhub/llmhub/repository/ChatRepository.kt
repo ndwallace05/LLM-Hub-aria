@@ -59,6 +59,13 @@ class ChatRepository(
         }
     }
     
+    suspend fun updateChatPersona(chatId: String, personaId: Int) {
+        val chat = chatDao.getChatById(chatId)
+        chat?.let {
+            chatDao.updateChat(it.copy(personaId = personaId, updatedAt = System.currentTimeMillis()))
+        }
+    }
+
     suspend fun deleteChat(chatId: String) {
         chatDao.deleteChatById(chatId)
         messageDao.deleteMessagesForChat(chatId)

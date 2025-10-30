@@ -8,8 +8,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import android.content.Context
 
 @Database(
-    entities = [ChatEntity::class, MessageEntity::class, MemoryDocument::class, com.llmhub.llmhub.data.MemoryChunkEmbedding::class],
-    version = 4,
+    entities = [ChatEntity::class, MessageEntity::class, MemoryDocument::class, com.llmhub.llmhub.data.MemoryChunkEmbedding::class, PersonaEntity::class],
+    version = 6,
     exportSchema = false
 )
 abstract class LlmHubDatabase : RoomDatabase() {
@@ -17,6 +17,7 @@ abstract class LlmHubDatabase : RoomDatabase() {
     abstract fun chatDao(): ChatDao
     abstract fun messageDao(): MessageDao
     abstract fun memoryDao(): MemoryDao
+    abstract fun personaDao(): PersonaDao
     
     companion object {
         @Volatile
@@ -48,13 +49,28 @@ abstract class LlmHubDatabase : RoomDatabase() {
             }
         }
         
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Create the personas table
+                database.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `personas` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `prompt` TEXT NOT NULL)"
+                )
+            }
+        }
+
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE chats ADD COLUMN personaId INTEGER")
+            }
+        }
+
         fun getDatabase(context: Context): LlmHubDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     LlmHubDatabase::class.java,
                     "llmhub_database"
-                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).build()
                 INSTANCE = instance
                 instance
             }

@@ -43,6 +43,7 @@ import com.llmhub.llmhub.ui.components.StatusChip
 import com.llmhub.llmhub.ui.components.SectionHeader
 import com.llmhub.llmhub.viewmodels.ChatViewModel
 import com.llmhub.llmhub.viewmodels.ChatViewModelFactory
+import com.llmhub.llmhub.viewmodels.PersonaViewModel
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.llmhub.llmhub.inference.MediaPipeInferenceService
 import kotlinx.coroutines.launch
@@ -84,11 +85,16 @@ fun ChatScreen(
     onNavigateBack: () -> Unit,
     drawerState: androidx.compose.material3.DrawerState
 ) {
+    val context = LocalContext.current
+    val application = context.applicationContext as com.llmhub.llmhub.llmhub.LlmHubApplication
+    val personaRepository = application.personaRepository
+    val personaViewModel: PersonaViewModel = viewModel(
+        factory = com.llmhub.llmhub.viewmodels.PersonaViewModelFactory(personaRepository)
+    )
     val viewModel: ChatViewModel = viewModel(
         key = "chat_$chatId",
         factory = viewModelFactory
     )
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var userTriggeredOpen by remember { mutableStateOf(false) }
     val configuration = LocalConfiguration.current
@@ -153,6 +159,7 @@ fun ChatScreen(
     val currentTtsMessageId = viewModelTtsMessageId ?: manualTtsMessageId
     
     var modelMenuExpanded by remember { mutableStateOf(false) }
+    var selectedPersona by remember { mutableStateOf<com.llmhub.llmhub.data.PersonaEntity?>(null) }
     
     // Backend selection state
     var showBackendDialog by remember { mutableStateOf(false) }
@@ -616,6 +623,16 @@ fun ChatScreen(
                     }
                 }
 
+                // Persona selector (only for new chats)
+                if (messages.isEmpty() && chatId == "new") {
+                    PersonaSelector(
+                        personaViewModel = personaViewModel,
+                        onPersonaSelected = { persona ->
+                            selectedPersona = persona
+                        }
+                    )
+                }
+
                 // Message input
                 Box(modifier = Modifier.imePadding()) {
                 MessageInput(
@@ -623,7 +640,7 @@ fun ChatScreen(
                         // Triple-layer keyboard dismissal for maximum reliability
                         keyboardController?.hide()
                         focusManager.clearFocus()
-                        viewModel.sendMessage(context, text, attachmentUri, audioData)
+                        viewModel.sendMessage(context, text, attachmentUri, audioData, selectedPersona?.id)
                     },
                     enabled = !isLoading && !isLoadingModel && currentChat != null,
                     supportsAttachments = true, // Enable attachments for all models
@@ -684,6 +701,58 @@ fun ChatScreen(
     }
 }
     
+@Composable
+fun PersonaSelector(
+    personaViewModel: PersonaViewModel,
+    onPersonaSelected: (com.llmhub.llmhub.data.PersonaEntity) -> Unit
+) {
+    val personas by personaViewModel.allPersonas.collectAsState()
+    var expanded by remember { mutableStateOf(false) }
+    var selectedPersonaName by remember { mutableStateOf<String?>(null) }
+
+    if (personas.isNotEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            OutlinedTextField(
+                value = selectedPersonaName ?: "No Persona",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Select Persona") },
+                trailingIcon = {
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = "Dropdown",
+                        Modifier.clickable { expanded = !expanded }
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = true }
+            )
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.fillMaxWidth(0.9f)
+            ) {
+                personas.forEach { persona ->
+                    DropdownMenuItem(
+                        text = { Text(persona.name) },
+                        onClick = {
+                            selectedPersonaName = persona.name
+                            onPersonaSelected(persona)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun WelcomeMessage(
     currentModel: String,

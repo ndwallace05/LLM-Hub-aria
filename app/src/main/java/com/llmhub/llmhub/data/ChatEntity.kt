@@ -11,5 +11,6 @@ data class ChatEntity(
     val title: String,
     val modelName: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val personaId: Int? = null
 ) 

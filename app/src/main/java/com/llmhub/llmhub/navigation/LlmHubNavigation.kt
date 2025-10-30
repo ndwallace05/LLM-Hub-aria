@@ -42,6 +42,12 @@ fun LlmHubNavigation(
     startDestination: String = Screen.Home.route
 ) {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val context = LocalContext.current
+    val application = context.applicationContext as LlmHubApplication
+    val personaRepository = application.personaRepository
+    val personaViewModel: PersonaViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = PersonaViewModelFactory(personaRepository)
+    )
 
     NavHost(
         navController = navController,
@@ -95,6 +101,7 @@ fun LlmHubNavigation(
             ChatScreen(
                 chatId = chatId,
                 viewModelFactory = chatViewModelFactory,
+                personaViewModel = personaViewModel,
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
@@ -188,14 +195,6 @@ fun LlmHubNavigation(
         }
 
         composable(Screen.Personas.route) {
-            val context = LocalContext.current
-            val application = context.applicationContext as LlmHubApplication
-            val personaRepository = application.personaRepository
-            val personaViewModel: PersonaViewModel = ViewModelProvider(
-                LocalContext.current as androidx.activity.ComponentActivity,
-                PersonaViewModelFactory(personaRepository)
-            ).get(PersonaViewModel::class.java)
-
             PersonaManagementScreen(
                 navController = navController,
                 personaViewModel = personaViewModel

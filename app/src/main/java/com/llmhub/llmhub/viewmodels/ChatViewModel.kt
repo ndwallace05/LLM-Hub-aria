@@ -2371,9 +2371,18 @@ class ChatViewModel(
         val model = currentModel ?: return ""
         val currentChatId = currentChatId ?: return ""
         
-        val personaPrompt = _currentChat.value?.personaId?.let { personaId ->
+        val MAX_PERSONA_PROMPT_LENGTH = 1024
+        val personaPromptRaw = _currentChat.value?.personaId?.let { personaId ->
             personaRepository.getPersonaById(personaId)?.prompt
         } ?: ""
+        val personaPrompt = if (personaPromptRaw.length > MAX_PERSONA_PROMPT_LENGTH) {
+            // Optionally, trigger a warning to the UI layer here (e.g., via LiveData or logging)
+            // For now, we log a warning
+            Log.w("ChatViewModel", "Persona prompt exceeds $MAX_PERSONA_PROMPT_LENGTH characters and will be truncated.")
+            personaPromptRaw.take(MAX_PERSONA_PROMPT_LENGTH)
+        } else {
+            personaPromptRaw
+        }
 
         // One-time priming: when returning to a chat from history, include ONLY
         // the last user/assistant pair to quickly re-establish immediate context.
@@ -2441,7 +2450,7 @@ class ChatViewModel(
     // If we just reset, be stricter to guarantee fast recovery.
     val historyFraction = if (recentlyReset) 0.30 else 0.66
     val maxContextTokens = (model.contextWindowSize * historyFraction).toInt().coerceAtLeast(256)
-        val maxContextChars = maxContextTokens * 4 // Rough character limit (1 token ≈ 4 characters)
+    val maxContextChars = (maxContextTokens * 4) - personaPrompt.length // Rough character limit (1 token ≈ 4 characters)
         
         Log.d("ChatViewModel", "Context window: Model ${model.name} has ${model.contextWindowSize} tokens, using ${maxContextTokens} tokens (${maxContextChars} chars) for chat $currentChatId with ${chatMessages.size} messages")
         
@@ -2490,10 +2499,19 @@ class ChatViewModel(
         // Calculate total length
         val fullHistory = pairStrings.joinToString(separator = "\n\n")
         
-        val historyWithPersona = if (personaPrompt.isNotBlank()) {
-            "$personaPrompt\n\n$fullHistory"
+        // Ensure persona prompt is always included, and truncate history as needed
+        val contextWindow = model.contextWindowSize ?: 4096 // fallback if not set
+        val personaLength = personaPrompt.length
+        val availableLengthForHistory = contextWindow - personaLength - 2 // for "\n\n"
+        val truncatedHistory = if (fullHistory.length > availableLengthForHistory && availableLengthForHistory > 0) {
+            fullHistory.takeLast(availableLengthForHistory)
         } else {
             fullHistory
+        }
+        val historyWithPersona = if (personaPrompt.isNotBlank()) {
+            "$personaPrompt\n\n$truncatedHistory"
+        } else {
+            truncatedHistory
         }
 
         // QUICK EXIT: If recent reset, drop all prior history. Start truly fresh.

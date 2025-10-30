@@ -79,6 +79,7 @@ fun getLocalizedModelName(model: LLMModel): String {
 fun ChatScreen(
     chatId: String,
     viewModelFactory: ChatViewModelFactory,
+    personaViewModel: PersonaViewModel,
     onNavigateToSettings: () -> Unit,
     onNavigateToModels: () -> Unit,
     onNavigateToChat: (String) -> Unit,
@@ -86,11 +87,6 @@ fun ChatScreen(
     drawerState: androidx.compose.material3.DrawerState
 ) {
     val context = LocalContext.current
-    val application = context.applicationContext as com.llmhub.llmhub.llmhub.LlmHubApplication
-    val personaRepository = application.personaRepository
-    val personaViewModel: PersonaViewModel = viewModel(
-        factory = com.llmhub.llmhub.viewmodels.PersonaViewModelFactory(personaRepository)
-    )
     val viewModel: ChatViewModel = viewModel(
         key = "chat_$chatId",
         factory = viewModelFactory
@@ -627,6 +623,7 @@ fun ChatScreen(
                 if (messages.isEmpty() && chatId == "new") {
                     PersonaSelector(
                         personaViewModel = personaViewModel,
+                        selectedPersona = selectedPersona,
                         onPersonaSelected = { persona ->
                             selectedPersona = persona
                         }
@@ -704,11 +701,11 @@ fun ChatScreen(
 @Composable
 fun PersonaSelector(
     personaViewModel: PersonaViewModel,
+    selectedPersona: com.llmhub.llmhub.data.PersonaEntity?,
     onPersonaSelected: (com.llmhub.llmhub.data.PersonaEntity) -> Unit
 ) {
     val personas by personaViewModel.allPersonas.collectAsState()
     var expanded by remember { mutableStateOf(false) }
-    var selectedPersonaName by remember { mutableStateOf<String?>(null) }
 
     if (personas.isNotEmpty()) {
         Box(
@@ -717,14 +714,14 @@ fun PersonaSelector(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             OutlinedTextField(
-                value = selectedPersonaName ?: "No Persona",
+                value = selectedPersona?.name ?: stringResource(R.string.no_persona),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Select Persona") },
+                label = { Text(stringResource(R.string.personas)) },
                 trailingIcon = {
                     Icon(
                         Icons.Default.ArrowDropDown,
-                        contentDescription = "Dropdown",
+                        contentDescription = stringResource(R.string.select_model),
                         Modifier.clickable { expanded = !expanded }
                     )
                 },
@@ -742,7 +739,6 @@ fun PersonaSelector(
                     DropdownMenuItem(
                         text = { Text(persona.name) },
                         onClick = {
-                            selectedPersonaName = persona.name
                             onPersonaSelected(persona)
                             expanded = false
                         }

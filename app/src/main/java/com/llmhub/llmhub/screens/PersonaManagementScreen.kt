@@ -13,8 +13,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.llmhub.llmhub.R
 import com.llmhub.llmhub.data.PersonaEntity
 import com.llmhub.llmhub.viewmodels.PersonaViewModel
 
@@ -31,10 +33,10 @@ fun PersonaManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Manage Personas") },
+                title = { Text(stringResource(R.string.manage_personas)) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back_description))
                     }
                 }
             )
@@ -44,14 +46,14 @@ fun PersonaManagementScreen(
                 selectedPersona = null
                 showDialog = true
             }) {
-                Icon(Icons.Default.Add, contentDescription = "Add Persona")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_persona_description))
             }
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (personas.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No personas created yet. Tap '+' to add one.")
+                    Text(stringResource(R.string.persona_empty_list))
                 }
             } else {
                 LazyColumn(modifier = Modifier.weight(1f)) {
@@ -77,7 +79,7 @@ fun PersonaManagementScreen(
             persona = selectedPersona,
             onDismiss = { showDialog = false },
             onSave = {
-                if (it.id == 0) {
+                if (it.id == null) {
                     personaViewModel.insert(it)
                 } else {
                     personaViewModel.update(it)
@@ -110,10 +112,10 @@ fun PersonaListItem(
             Text(text = persona.name, style = MaterialTheme.typography.titleMedium)
             Row {
                 IconButton(onClick = { onEdit(persona) }) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_persona_description))
                 }
                 IconButton(onClick = { onDelete(persona) }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                    Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_persona_description))
                 }
             }
         }
@@ -131,20 +133,20 @@ fun PersonaEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (persona == null) "Add Persona" else "Edit Persona") },
+        title = { Text(if (persona == null) stringResource(R.string.add_persona) else stringResource(R.string.edit_persona)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Persona Name") },
+                    label = { Text(stringResource(R.string.persona_name)) },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
                     value = prompt,
                     onValueChange = { prompt = it },
-                    label = { Text("System Prompt") },
+                    label = { Text(stringResource(R.string.persona_prompt)) },
                     modifier = Modifier.fillMaxWidth().height(150.dp)
                 )
             }
@@ -157,12 +159,12 @@ fun PersonaEditDialog(
                 },
                 enabled = name.isNotBlank() && prompt.isNotBlank()
             ) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
